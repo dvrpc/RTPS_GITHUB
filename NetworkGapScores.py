@@ -538,7 +538,7 @@ print "importing connection score table"
 #create Connection Score table in postgres
 from sqlalchemy import create_engine
 engine = create_engine('postgresql://postgres:sergt@localhost:5432/RTPS')
-SubRegionDF.to_sql('ConnectionScore2', engine, chunksize = 10000)
+SubRegionDF.to_sql('ConnectionScore', engine, chunksize = 10000)
 
 ###DEMAND SCORE###
 print "gathering demand data"
@@ -586,7 +586,7 @@ print "importing demand score table"
 
 from sqlalchemy import create_engine
 engine = create_engine('postgresql://postgres:sergt@localhost:5432/RTPS')
-RegionDemand.to_sql('DemandScore2', engine, chunksize = 10000)
+RegionDemand.to_sql('DemandScore', engine, chunksize = 10000)
 
 import psycopg2 as psql # PostgreSQL connector
 #connect to SQL DB in python
@@ -598,34 +598,34 @@ print "calculating demand score"
 
 #2 bins for pairs with demand (above and below 5 - half of mean)
 Q_AddCol = """
-    ALTER TABLE public."DemandScore2"
+    ALTER TABLE public."DemandScore"
     ADD COLUMN "DemScore" integer;"""
 cur.execute(Q_AddCol)
 con.commit()
 
 #no demand
 Q_SetDemandScore_0 = """
-    UPDATE public."DemandScore2"
+    UPDATE public."DemandScore"
     SET "DemScore" = 0
-    WHERE public."DemandScore2"."DailyVols" < 1 ; 
+    WHERE public."DemandScore"."DailyVols" < 1 ; 
     """
 cur.execute(Q_SetDemandScore_0)
 
 #below mean demand
 Q_SetDemandScore_1 = """
-    UPDATE public."DemandScore2"
+    UPDATE public."DemandScore"
     SET "DemScore" = 1
-    WHERE public."DemandScore2"."DailyVols" <= 5
-    AND public."DemandScore2"."DailyVols" >= 1; 
+    WHERE public."DemandScore"."DailyVols" <= 5
+    AND public."DemandScore"."DailyVols" >= 1; 
     """
 cur.execute(Q_SetDemandScore_1)
 
 #above mean demand
 Q_SetDemandScore_rest = """
-    UPDATE public."DemandScore2"
+    UPDATE public."DemandScore"
     SET "DemScore" = 2
-    WHERE public."DemandScore2"."DailyVols" <= 7240
-    AND public."DemandScore2"."DailyVols" > 5; 
+    WHERE public."DemandScore"."DailyVols" <= 7240
+    AND public."DemandScore"."DailyVols" > 5; 
     """
 cur.execute(Q_SetDemandScore_rest)
 con.commit()

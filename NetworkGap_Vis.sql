@@ -70,36 +70,43 @@ WHERE "FromZone" NOT IN (
 	FROM odgaps_ts)
 
 
---add new gap score which is the product of the sum_ts and the connection score
-ALTER TABLE odgaps_ts2
-ADD COLUMN newgapscore double precision;
-
-UPDATE odgaps_ts2
-SET newgapscore = "ConnectionScore"*sum_ts;
-
 --create indices
-CREATE INDEX odgaps_ts2_idx_zones
-  ON public.odgaps_ts2
+CREATE INDEX odgaps_ts_idx_base
+  ON public.odgaps_ts
   USING btree
-  ("FromZone", "ToZone", "NumTransfers", "TrWait", "DistanceFlag", "TimeFlag", "TransferPoint", "TWTPoint", "ConnectionScore", "DailyVols", demandscore, o_ts, d_ts, sum_ts, newgapscore);
+  ("FromZone", "ToZone", "NumTransfers", "TrWait", "DistanceFlag", "TimeFlag", "TransferPoint", "TWTPoint", "ConnectionScore", "DailyVols", demandscore, o_ts, d_ts, sum_ts);
 
-CREATE INDEX odgaps_ts2_idx_g
-  ON public.odgaps_ts2
+CREATE INDEX odgaps_ts_idx_g
+  ON public.odgaps_ts
   USING gist
   (fromgeom, togeom);
+  
+--add new gap score which is the product of the sum_ts and the connection score
+ALTER TABLE odgaps_ts
+ADD COLUMN gapscore double precision;
+
+UPDATE odgaps_ts
+SET gapscore = "ConnectionScore"*sum_ts;
+
+--create indices
+CREATE INDEX odgaps_ts_idx_gap
+  ON public.odgaps_ts
+  USING btree
+  (gapscore);
+
 
 
 --summary table incorporating ts
-CREATE TABLE odgaps_ts_summary2 AS(
+CREATE TABLE odgaps_ts_summary AS(
     WITH tblA AS(
         SELECT 
             "ToZone" AS zone,
             SUM("ConnectionScore"*demandscore)/SUM(demandscore) AS w_avg_con,
-            SUM("newgapscore"*demandscore)/SUM(demandscore) AS w_avg_score,
+            SUM("gapscore"*demandscore)/SUM(demandscore) AS w_avg_score,
             AVG("DailyVols") AS avgvol,
             SUM("DailyVols") AS sumvol,
             togeom AS geom
-        FROM odgaps_ts2
+        FROM odgaps_ts
         WHERE demandscore <> 0
         GROUP BY "ToZone", togeom
         ORDER BY "ToZone"),
@@ -107,11 +114,11 @@ CREATE TABLE odgaps_ts_summary2 AS(
         SELECT 
             "FromZone" AS zone,
             SUM("ConnectionScore"*demandscore)/SUM(demandscore) AS w_avg_con,
-            SUM("newgapscore"*demandscore)/SUM(demandscore) AS w_avg_score,
+            SUM("gapscore"*demandscore)/SUM(demandscore) AS w_avg_score,
             AVG("DailyVols") AS avgvol,
             SUM("DailyVols") AS sumvol,
             fromgeom AS geom
-        FROM odgaps_ts2
+        FROM odgaps_ts
         WHERE demandscore <> 0
         GROUP BY "FromZone", fromgeom
         ORDER BY "FromZone")
@@ -128,14 +135,14 @@ CREATE TABLE odgaps_ts_summary2 AS(
     
     
 --create indices
-CREATE INDEX odgaps_ts_summary_idx
-  ON public.odgaps_ts_summary2
+CREATE INDEX odgaps_ts_summary_idx_base
+  ON public.odgaps_ts_summary
   USING btree
   (zone, w_avgcon, w_avgscore, w_avgvol);
 
 
-CREATE INDEX odgaps_ts_summary_idx_g
-  ON public.odgaps_ts_summary2
+CREATE INDEX odgaps_ts_summary_idx_geo
+  ON public.odgaps_ts_summary
   USING gist
   (geom);
     
@@ -144,9 +151,9 @@ CREATE INDEX odgaps_ts_summary_idx_g
     SELECT
         "FromZone",
         SUM("ConnectionScore"*demandscore)/SUM(demandscore) AS w_avg_con,
-        SUM("newgapscore"*demandscore)/SUM(demandscore) AS w_avg_gap,
+        SUM("gapscore"*demandscore)/SUM(demandscore) AS w_avg_gap,
         AVG("ConnectionScore") AS avgcon,
-        AVG(newgapscore) AS avggap,
+        AVG(gapscore) AS avggap,
         --AVG("DailyVols") AS avgvol,
         fromgeom
     FROM odgaps_ts
@@ -158,9 +165,9 @@ CREATE INDEX odgaps_ts_summary_idx_g
     SELECT
         "FromZone",
         SUM("ConnectionScore"*demandscore)/SUM(demandscore) AS w_avg_con,
-        SUM("newgapscore"*demandscore)/SUM(demandscore) AS w_avg_gap,
+        SUM("gapscore"*demandscore)/SUM(demandscore) AS w_avg_gap,
         AVG("ConnectionScore") AS avgcon,
-        AVG(newgapscore) AS avggap,
+        AVG(gapscore) AS avggap,
         --AVG("DailyVols") AS avgvol,
         fromgeom
     FROM odgaps_ts
@@ -172,9 +179,9 @@ CREATE INDEX odgaps_ts_summary_idx_g
     SELECT
         "FromZone",
         SUM("ConnectionScore"*demandscore)/SUM(demandscore) AS w_avg_con,
-        SUM("newgapscore"*demandscore)/SUM(demandscore) AS w_avg_gap,
+        SUM("gapscore"*demandscore)/SUM(demandscore) AS w_avg_gap,
         AVG("ConnectionScore") AS avgcon,
-        AVG(newgapscore) AS avggap,
+        AVG(gapscore) AS avggap,
         --AVG("DailyVols") AS avgvol,
         fromgeom
     FROM odgaps_ts
@@ -187,9 +194,9 @@ CREATE INDEX odgaps_ts_summary_idx_g
     SELECT
         "ToZone",
         SUM("ConnectionScore"*demandscore)/SUM(demandscore) AS w_avg_con,
-        SUM("newgapscore"*demandscore)/SUM(demandscore) AS w_avg_gap,
+        SUM("gapscore"*demandscore)/SUM(demandscore) AS w_avg_gap,
         AVG("ConnectionScore") AS avgcon,
-        AVG(newgapscore) AS avggap,
+        AVG(gapscore) AS avggap,
         --AVG("DailyVols") AS avgvol,
         togeom
     FROM odgaps_ts
@@ -206,12 +213,12 @@ CREATE INDEX odgaps_ts_summary_idx_g
     SELECT
         "ToZone",
         SUM("ConnectionScore"*demandscore)/SUM(demandscore) AS w_avg_con,
-        SUM("newgapscore"*demandscore)/SUM(demandscore) AS w_avg_gap,
+        SUM("gapscore"*demandscore)/SUM(demandscore) AS w_avg_gap,
         AVG("ConnectionScore") AS avgcon,
-        AVG(newgapscore) AS avggap,
+        AVG(gapscore) AS avggap,
         --AVG("DailyVols") AS avgvol,
         togeom
-    FROM odgaps_ts2
+    FROM odgaps_ts
     WHERE "FromZone" IN(
         SELECT no
         FROM zonemcd_join_region_wpnr
@@ -224,12 +231,12 @@ CREATE INDEX odgaps_ts_summary_idx_g
     SELECT
         "ToZone",
         SUM("ConnectionScore"*demandscore)/SUM(demandscore) AS w_avg_con,
-        SUM("newgapscore"*demandscore)/SUM(demandscore) AS w_avg_gap,
+        SUM("gapscore"*demandscore)/SUM(demandscore) AS w_avg_gap,
         AVG("ConnectionScore") AS avgcon,
-        AVG(newgapscore) AS avggap,
+        AVG(gapscore) AS avggap,
         --AVG("DailyVols") AS avgvol,
         togeom
-    FROM odgaps_ts2
+    FROM odgaps_ts
     WHERE "FromZone" IN(
         SELECT no
         FROM zonemcd_join_region_wpnr
@@ -242,9 +249,9 @@ CREATE INDEX odgaps_ts_summary_idx_g
     SELECT
         "FromZone",
         SUM("ConnectionScore"*demandscore)/SUM(demandscore) AS w_avg_con,
-        SUM("newgapscore"*demandscore)/SUM(demandscore) AS w_avg_gap,
+        SUM("gapscore"*demandscore)/SUM(demandscore) AS w_avg_gap,
         AVG("ConnectionScore") AS avgcon,
-        AVG(newgapscore) AS avggap,
+        AVG(gapscore) AS avggap,
         --AVG("DailyVols") AS avgvol,
         fromgeom
     FROM odgaps_ts
@@ -257,9 +264,9 @@ CREATE INDEX odgaps_ts_summary_idx_g
     SELECT
         "ToZone",
         SUM("ConnectionScore"*demandscore)/SUM(demandscore) AS w_avg_con,
-        SUM("newgapscore"*demandscore)/SUM(demandscore) AS w_avg_gap,
+        SUM("gapscore"*demandscore)/SUM(demandscore) AS w_avg_gap,
         AVG("ConnectionScore") AS avgcon,
-        AVG(newgapscore) AS avggap,
+        AVG(gapscore) AS avggap,
         --AVG("DailyVols") AS avgvol,
         togeom
     FROM odgaps_ts
