@@ -190,6 +190,25 @@ CREATE INDEX odgaps_ts_summary_idx_geo
     AND demandscore <> 0
     GROUP BY "FromZone", fromgeom
     
+    
+-- Greater Center City (Center City and University City Combined)
+    SELECT
+        "FromZone",
+        SUM("ConnectionScore"*demandscore)/SUM(demandscore) AS w_avg_con,
+        SUM("gapscore"*demandscore)/SUM(demandscore) AS w_avg_gap,
+        AVG("ConnectionScore") AS avgcon,
+        AVG(gapscore) AS avggap,
+        --AVG("DailyVols") AS avgvol,
+        fromgeom
+    FROM odgaps_ts
+    WHERE "ToZone" < 1100 
+    AND "ToZone" > 1000
+    AND demandscore <> 0
+    OR "ToZone" < 200
+    GROUP BY "FromZone", fromgeom
+    
+    
+    
 -- from Glassboro
     SELECT
         "ToZone",
