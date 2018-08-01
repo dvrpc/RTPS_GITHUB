@@ -9,7 +9,7 @@ WITH tblA AS(
 		r.td_base_nb,
 		r.td_notacc_nb,
 		r.td_notaccorprog_nb
-	FROM "60minRIT" r
+	FROM "60minRIT_delSA" r
 	INNER JOIN "Acc_Twk_Connectors" c
 	ON r.no = c."ZoneNo")
 

@@ -7,7 +7,7 @@ import os
 #flag connectors to remove based on stations that are not wheelchair accessible
 
 #look for version files in the run folder
-runDir = r"D:\BikePedTransit\RTPS\ServiceAccessibility\Accessible_Connectors\NotAccessibleORProgrammed_NoBus"
+runDir = r"D:\BikePedTransit\RTPS\ServiceAccessibility\Accessible_Connectors\Current_NoBus"
 TODs = ["AM", "MD", "PM", "NT"]
 
 #append the TOD keywords to the file path
@@ -24,11 +24,11 @@ for versionFilePath in paths:
     Visum.LoadVersion(versionFilePath)
     TOD = Visum.Net.AttValue("TOD")
     
-    #did not test this part - created UDAs manually
-    ##Visum.Net.StopPoints.AddUserDefinedAttribute("BlackList","BlackList","BlackList",9,defval=True)
+    #create UDAs
+    Visum.Net.StopPoints.AddUserDefinedAttribute("BlackList","BlackList","BlackList",9,defval=False)
     
     #open and read list of nodes (from stop areas) the TWalk connectors need to be removed from
-    with open(r'D:\BikePedTransit\RTPS\ServiceAccessibility\Accessible_Connectors\NotAccessible_NoBus\NodeNos_NotAccessible.csv','rb') as IO:
+    with open(r'D:\BikePedTransit\RTPS\ServiceAccessibility\Accessible_Connectors\Current_NoBus\NodeNos_NotAccessible.csv','rb') as IO:
         r = csv.reader(IO)
         header = r.next()
         NodeList = []
@@ -42,11 +42,11 @@ for versionFilePath in paths:
     #set to false if NodeNo is in NodeList
     for i in xrange(0, len(BlackList)):
         if Nodes[i] in NodeList:
-                BlackList[i] = False
+                BlackList[i] = True
      
     h.SetMulti(Visum.Net.StopPoints, "BlackList", BlackList, True)
     
     Visum.SaveVersion(Visum.UserPreferences.DocumentName)
 
-##Toggle off boards/alights for each time profile item associated with these stop points (using filters)
+##delete stop areas associated with these stop points (using filters)
 ##reskim RIT in each version file
