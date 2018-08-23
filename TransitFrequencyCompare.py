@@ -121,10 +121,16 @@ for key in PassTransTot:
     
 for key in LinePassBoard:
     for i in xrange(0,len(sum_LinePassBoard)):
-        sum_LinePassBoard[i] += LinePassBoard[key][i]
+        if LinePassBoard[key][i] is None:
+            sum_LinePassBoard[i] += 0
+        else:
+            sum_LinePassBoard[i] += LinePassBoard[key][i]
 for key in LinePassAlight:
-    for i in xrange(0,len(sum_LinePassAlight)):
-        sum_LinePassAlight[i] += LinePassAlight[key][i]
+    for i in xrange(0,len(sum_LinePassAlight)):        
+        if LinePassAlight[key][i] is None:
+            sum_LinePassAlight[i] += 0
+        else:
+            sum_LinePassAlight[i] += LinePassAlight[key][i]
     
     
 #combine into dataframes
@@ -190,27 +196,27 @@ for versionFilePath in paths:
     print TOD
     
     #collect attributes from time period version files
-    ZoneNo = h.GetMulti(Visum.Net.Zones, "No")
+    #ZoneNo = h.GetMulti(Visum.Net.Zones, "No")
     #convert to integer (as necessary)
-    for i in xrange(0, len(ZoneNo)):
-        if ZoneNo[i] != None:
-            ZoneNo[i] = int(ZoneNo[i])
+    #for i in xrange(0, len(ZoneNo)):
+    #    if ZoneNo[i] != None:
+    #        ZoneNo[i] = int(ZoneNo[i])
     OZonalPuT[TOD] = h.GetMulti(Visum.Net.Zones, "MatRowSum(2200TrTotal)")
     DZonalPuT[TOD] = h.GetMulti(Visum.Net.Zones, "MatColSum(2200TrTotal)")
     OZonalCar[TOD] = h.GetMulti(Visum.Net.Zones, "MatRowSum(2000Highway)")
     DZonalCar[TOD] = h.GetMulti(Visum.Net.Zones, "MatColSum(2000Highway)")
     
     #gather stop point attributes
-    StopNo = h.GetMulti(Visum.Net.StopPoints, "No")
-    for i in xrange(0, len(StopNo)):
-        if StopNo[i] != None:
-            StopNo[i] = int(StopNo[i])
-    StopCode = h.GetMulti(Visum.Net.StopPoints, "Code")
-    StopName = h.GetMulti(Visum.Net.StopPoints, "Name")
-    NodeNo = h.GetMulti(Visum.Net.StopPoints, "NodeNo")
-    for i in xrange(0, len(NodeNo)):
-        if NodeNo[i] != None:
-            NodeNo[i] = int(NodeNo[i])
+    #StopNo = h.GetMulti(Visum.Net.StopPoints, "No")
+    #for i in xrange(0, len(StopNo)):
+    #    if StopNo[i] != None:
+    #        StopNo[i] = int(StopNo[i])
+    #StopCode = h.GetMulti(Visum.Net.StopPoints, "Code")
+    #StopName = h.GetMulti(Visum.Net.StopPoints, "Name")
+    #NodeNo = h.GetMulti(Visum.Net.StopPoints, "NodeNo")
+    #for i in xrange(0, len(NodeNo)):
+    #    if NodeNo[i] != None:
+    #        NodeNo[i] = int(NodeNo[i])
     PassBoard[TOD] = h.GetMulti(Visum.Net.StopPoints, "PassBoard(AP)")
     PassAlight[TOD] = h.GetMulti(Visum.Net.StopPoints, "PassAlight(AP)")
     PassOrigin[TOD] = h.GetMulti(Visum.Net.StopPoints, "PassOrigin(AP)")
@@ -220,8 +226,8 @@ for versionFilePath in paths:
     #PassThruNoStop = h.GetMulti(Visum.Net.StopPoints, "PassThroughNoStop(AP)")
     
     #gather line attributes
-    LineName = h.GetMulti(Visum.Net.Lines, "Name")
-    TSysCode = h.GetMulti(Visum.Net.Lines, "TSysCode")
+    #LineName = h.GetMulti(Visum.Net.Lines, "Name")
+    #TSysCode = h.GetMulti(Visum.Net.Lines, "TSysCode")
     LinePassBoard[TOD] =  h.GetMulti(Visum.Net.Lines, "Sum:LineRoutes\Sum:LineRouteItems\PassBoard(AP)")
     LinePassAlight[TOD] = h.GetMulti(Visum.Net.Lines, "Sum:LineRoutes\Sum:LineRouteItems\PassAlight(AP)")
 
@@ -273,10 +279,16 @@ for key in PassTransTot:
     
 for key in LinePassBoard:
     for i in xrange(0,len(sum_LinePassBoard)):
-        sum_LinePassBoard[i] += LinePassBoard[key][i]
+        if LinePassBoard[key][i] is None:
+            sum_LinePassBoard[i] += 0
+        else:
+            sum_LinePassBoard[i] += LinePassBoard[key][i]
 for key in LinePassAlight:
-    for i in xrange(0,len(sum_LinePassAlight)):
-        sum_LinePassAlight[i] += LinePassAlight[key][i]
+    for i in xrange(0,len(sum_LinePassAlight)):        
+        if LinePassAlight[key][i] is None:
+            sum_LinePassAlight[i] += 0
+        else:
+            sum_LinePassAlight[i] += LinePassAlight[key][i]
 
 #add to dataframes
 zones_df['2x_OZonalPuT'] = sum_OZonalPuT
@@ -294,54 +306,69 @@ lines_df['2x_LinePassBoard' ] = sum_LinePassBoard
 lines_df['2x_LinePassAlight'] = sum_LinePassAlight
      
 #calculate difference and percent difference columns
+zones_df['Dif_OZonalPuT'] = zones_df['2x_OZonalPuT'] - zones_df['Base_OZonalPuT']
+zones_df['Dif_DZonalPuT'] = zones_df['2x_DZonalPuT'] - zones_df['Base_DZonalPuT']
+zones_df['Dif_OZonalCar'] = zones_df['2x_OZonalCar'] - zones_df['Base_OZonalCar']
+zones_df['Dif_DZonalCar'] = zones_df['2x_DZonalCar'] - zones_df['Base_DZonalCar']
 
+stops_df['Dif_PassBoard'   ] = stops_df['2x_PassBoard'   ] - stops_df['Base_PassBoard'   ]
+stops_df['Dif_PassAlight'  ] = stops_df['2x_PassAlight'  ] - stops_df['Base_PassAlight'  ]
+stops_df['Dif_PassOrigin'  ] = stops_df['2x_PassOrigin'  ] - stops_df['Base_PassOrigin'  ]
+stops_df['Dif_PassDest'    ] = stops_df['2x_PassDest'    ] - stops_df['Base_PassDest'    ]
+stops_df['Dif_PassTransTot'] = stops_df['2x_PassTransTot'] - stops_df['Base_PassTransTot']
 
+lines_df['Dif_LinePassBoard' ] = lines_df['2x_LinePassBoard' ] - lines_df['Base_LinePassBoard' ]
+lines_df['Dif_LinePassAlight'] = lines_df['2x_LinePassAlight'] - lines_df['Base_LinePassAlight']
 
+zones_df['PerDif_OZonalPuT'] = numpy.where(zones_df['Base_OZonalPuT']>0,(zones_df['Dif_OZonalPuT'] / zones_df['Base_OZonalPuT'])*100, 999)
+zones_df['PerDif_DZonalPuT'] = numpy.where(zones_df['Base_DZonalPuT']>0,(zones_df['Dif_DZonalPuT'] / zones_df['Base_DZonalPuT'])*100, 999)
+zones_df['PerDif_OZonalCar'] = numpy.where(zones_df['Base_OZonalCar']>0,(zones_df['Dif_OZonalCar'] / zones_df['Base_OZonalCar'])*100, 999)
+zones_df['PerDif_DZonalCar'] = numpy.where(zones_df['Base_DZonalCar']>0,(zones_df['Dif_DZonalCar'] / zones_df['Base_DZonalCar'])*100, 999)
 
+stops_df['PerDif_PassBoard'   ] = numpy.where(stops_df['Base_PassBoard'   ]>0, (stops_df['Dif_PassBoard'   ] / stops_df['Base_PassBoard'   ])*100, 999)
+stops_df['PerDif_PassAlight'  ] = numpy.where(stops_df['Base_PassAlight'  ]>0, (stops_df['Dif_PassAlight'  ] / stops_df['Base_PassAlight'  ])*100, 999)
+stops_df['PerDif_PassOrigin'  ] = numpy.where(stops_df['Base_PassOrigin'  ]>0, (stops_df['Dif_PassOrigin'  ] / stops_df['Base_PassOrigin'  ])*100, 999)
+stops_df['PerDif_PassDest'    ] = numpy.where(stops_df['Base_PassDest'    ]>0, (stops_df['Dif_PassDest'    ] / stops_df['Base_PassDest'    ])*100, 999)
+stops_df['PerDif_PassTransTot'] = numpy.where(stops_df['Base_PassTransTot']>0, (stops_df['Dif_PassTransTot'] / stops_df['Base_PassTransTot'])*100, 999)
 
-    #write output for zonal transit ridership attributes
-    #change csv names for subsequent runs on different run folders
-    if not os.path.exists(r'D:\BikePedTransit\RTPS\Frequency\HalfZonalPuT.csv'):
-        with open(r'D:\BikePedTransit\RTPS\Frequency\HalfZonalPuT.csv','wb') as IO:
-            w = csv.writer(IO)
-            w.writerow(['ZoneNo', 'OriginZonalPuT', 'DestinationZonalPuT','TOD'])
+lines_df['PerDif_LinePassBoard' ] = numpy.where(lines_df['Base_LinePassBoard' ]>0,(lines_df['Dif_LinePassBoard' ] / lines_df['Base_LinePassBoard' ])*100, 999)
+lines_df['PerDif_LinePassAlight'] = numpy.where(lines_df['Base_LinePassAlight']>0,(lines_df['Dif_LinePassAlight'] / lines_df['Base_LinePassAlight'])*100, 999)
 
-    with open(r'D:\BikePedTransit\RTPS\Frequency\HalfZonalPuT.csv','ab') as IO:
-        w = csv.writer(IO)
-        for i in xrange(0, len(ZoneNo)):
-            w.writerow([
-                ZoneNo[i],
-                OZonalPuT[i],
-                DZonalPuT[i],
-                TOD
-            ])
-            
-    #write output for stop point level transit ridership attributes
-    #change csv names for subsequent runs on different run folders
-    if not os.path.exists(r'D:\BikePedTransit\RTPS\Frequency\HalfStopPointPuT.csv'):
-        with open(r'D:\BikePedTransit\RTPS\Frequency\HalfStopPointPuT.csv','wb') as IO:
-            w = csv.writer(IO)
-            w.writerow(['StopNo', 'StopCode', 'StopName','NodeNo', 'PassBoard', 'PassAlight', 'PassOrigin', 'PassDest', 'PassTransTot', 'PassThruStop', 'PassThruNoStop', 'TPLineCount', 'TPLaneNames', 'TPTSys', 'TPTSysCount', 'TOD'])
+lines_df = lines_df.drop(['Base_LinePassAlight', '2x_LinePassAlight', 'Dif_LinePassAlight', 'PerDif_LinePassAlight'], axis=1)
 
-    with open(r'D:\BikePedTransit\RTPS\Frequency\HalfStopPointPuT.csv','ab') as IO:
-        w = csv.writer(IO)
-        for i in xrange(0, len(ZoneNo)):
-            w.writerow([
-                StopNo[i],
-                StopCode[i],
-                StopName[i],
-                NodeNo[i],
-                PassBoard[i],
-                PassAlight[i],
-                PassOrigin[i],
-                PassDest[i],
-                PassTransTot[i],
-                PassThruStop[i],
-                PassThruNoStop[i],
-                TPLineCount[i],
-                TPLaneNames[i],
-                TPTSys[i],
-                TPTSysCount[i],
-                TOD
-            ])
+#drop data frames into SQL db
+from sqlalchemy import create_engine
+engine = create_engine('postgresql://postgres:sergt@localhost:5432/RTPS')
+zones_df.to_sql('freq_zones', engine)
+
+from sqlalchemy import create_engine
+engine = create_engine('postgresql://postgres:sergt@localhost:5432/RTPS')
+stops_df.to_sql('freq_stops', engine)
+
+from sqlalchemy import create_engine
+engine = create_engine('postgresql://postgres:sergt@localhost:5432/RTPS')
+lines_df.to_sql('freq_lines', engine)
+
+###################################################
+#join to geometries in QGIS
+SELECT
+	fz.*,
+	z.geom
+FROM freq_zones fz
+INNER JOIN zonal_geom z
+ON fz."ZoneNo" = z.no
+
+SELECT
+	fz.*,
+	z.geom
+FROM freq_stops fz
+INNER JOIN stoppoints z
+ON fz."StopNo" = z.num
+
+SELECT
+	fz.*,
+	ST_SetSRID(z.geom,26918) as geom
+FROM freq_lines fz
+INNER JOIN simplified_lineroutes z
+ON fz."LineName" = z.linename
 
