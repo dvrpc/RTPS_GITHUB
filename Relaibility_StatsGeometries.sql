@@ -56,7 +56,22 @@ SELECT
     
 --create table joining frequency results to NJT and SEPTA bus route GIS data
 --use other file for trolleys, RR, subway (joined to simplified line routes)
-
+SELECT 
+    f.index,
+    f."Base_LinePassBoard",
+    f."LineName",
+    f."TSysCode" ,
+    f."2x_LinePassBoard",
+    f."Dif_LinePassBoard",
+    f."PerDif_LinePassBoard",
+    n.geom
+FROM (SELECT
+            linename,
+            ST_Union(geom) geom
+        FROM linkspeed_byline
+        GROUP BY linename) n
+INNER JOIN freq_lines f
+ON f."LineName" = n.linename
     
 -------------------------------------------------------------------------------------------------------------
 ---troubleshooting
