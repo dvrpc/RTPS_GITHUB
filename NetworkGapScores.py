@@ -608,7 +608,7 @@ con.commit()
 Q_SetDemandScore_0 = """
     UPDATE public."DemandScore_s"
     SET "DemScore" = 0
-    WHERE public."DemandScore"."DailyVols" < 1 ; 
+    WHERE public."DemandScore_s"."DailyVols" < 1 ; 
     """
 cur.execute(Q_SetDemandScore_0)
 
@@ -616,8 +616,8 @@ cur.execute(Q_SetDemandScore_0)
 Q_SetDemandScore_1 = """
     UPDATE public."DemandScore_s"
     SET "DemScore" = 1
-    WHERE public."DemandScore"."DailyVols" <= 5
-    AND public."DemandScore"."DailyVols" >= 1; 
+    WHERE public."DemandScore_s"."DailyVols" <= 5
+    AND public."DemandScore_s"."DailyVols" >= 1; 
     """
 cur.execute(Q_SetDemandScore_1)
 
@@ -625,8 +625,8 @@ cur.execute(Q_SetDemandScore_1)
 Q_SetDemandScore_rest = """
     UPDATE public."DemandScore_s"
     SET "DemScore" = 2
-    WHERE public."DemandScore"."DailyVols" <= 7240
-    AND public."DemandScore"."DailyVols" > 5; 
+    WHERE public."DemandScore_s"."DailyVols" <= 7240
+    AND public."DemandScore_s"."DailyVols" > 5; 
     """
 cur.execute(Q_SetDemandScore_rest)
 con.commit()
