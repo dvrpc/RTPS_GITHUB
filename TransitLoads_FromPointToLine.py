@@ -381,6 +381,7 @@ for i in xrange(len(sub_shapes)):
                 VALUES (%s, %s, %s, %s, ST_GeomFromEWKT(%s))
                 """,[results[i][0], results[i][1], results[i][2], results[i][3], results[i][4]])
             con.commit()
+
             
             
 #in QGIS to view results with route/direction information
