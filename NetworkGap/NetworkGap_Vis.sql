@@ -2,14 +2,14 @@
 
 
 --combine conneciton score and demand score tables; get geometries from zonal_geom table
-CREATE TABLE odgaps_s AS(
+CREATE TABLE odgaps AS(
     WITH tblA AS(
         SELECT 
             c.*,
             d."DailyVols",
             d."DemScore" demandscore
-        FROM "ConnectionScore_s" c
-        INNER JOIN "DemandScore_s" d
+        FROM "ConnectionScore" c
+        INNER JOIN "DemandScore" d
         ON d."FromZone" = c."FromZone"
         AND d."ToZone" = c."ToZone")
         
@@ -20,9 +20,9 @@ CREATE TABLE odgaps_s AS(
 		z2.no tozone,
 		z2.geom togeom
 	FROM tblA a
-	INNER JOIN "zonal_geom" z1
+	INNER JOIN "zone_geom" z1
 	ON z1.no = a."FromZone"
-	INNER JOIN "zonal_geom" z2
+	INNER JOIN "zone_geom" z2
 	ON z2.no = a."ToZone");
 	
 COMMIT;
@@ -41,7 +41,7 @@ COMMIT;
 '''
 
 -- join transit score to od pair table for method 1 of incorporating transit score/normalizing by pop/emp den
-CREATE TABLE odgaps_ts_s AS(
+CREATE TABLE odgaps_ts AS(
     SELECT
         o2.*,
         (o_ts + d_ts) AS sum_ts
@@ -50,13 +50,13 @@ CREATE TABLE odgaps_ts_s AS(
             o.*,
             d1.tscatnum AS o_ts,
             d2.tscatnum AS d_ts
-        FROM odgaps_s o
+        FROM odgaps o
         INNER JOIN dvrpc_transitscore_2015 d1
         ON o."FromZone" = d1.tazn
         INNER JOIN dvrpc_transitscore_2015 d2
         ON o."ToZone" = d2.tazn) o2
         );
-        
+COMMIT;
 '''
 -- check to see if 2218 is in table
 SELECT
@@ -68,41 +68,41 @@ WHERE "FromZone" = 2218 --(22446)
 --test that all are included
 SELECT
    DISTINCT("FromZone")
-FROM odgaps_s
+FROM odgaps
 WHERE "FromZone" NOT IN (
 	SELECT
 		DISTINCT("FromZone")
-	FROM odgaps_ts_s)
+	FROM odgaps_ts)
 
 
 --create indices
 CREATE INDEX odgaps_ts_idx_base_s
-  ON public.odgaps_ts_s
+  ON public.odgaps_ts
   USING btree
   ("FromZone", "ToZone", "NumTransfers", "TrWait", "DistanceFlag", "TimeFlag", "TransferPoint", "TWTPoint", "ConnectionScore", "DailyVols", demandscore, o_ts, d_ts, sum_ts);
 
 CREATE INDEX odgaps_ts_idx_g_s
-  ON public.odgaps_ts_s
+  ON public.odgaps_ts
   USING gist
   (fromgeom, togeom);
   
 --add new gap score which is the product of the sum_ts and the connection score
-ALTER TABLE odgaps_ts_s
+ALTER TABLE odgaps_ts
 ADD COLUMN gapscore double precision;
 
-UPDATE odgaps_ts_s
+UPDATE odgaps_ts
 SET gapscore = "ConnectionScore"*sum_ts;
 
 --create indices
 CREATE INDEX odgaps_ts_idx_gap_s
-  ON public.odgaps_ts_s
+  ON public.odgaps_ts
   USING btree
   (gapscore);
 
 
 
 --summary table incorporating ts
-CREATE TABLE odgaps_ts_summary_s AS(
+CREATE TABLE odgaps_ts_summary AS(
     WITH tblA AS(
         SELECT 
             "ToZone" AS zone,
@@ -111,7 +111,7 @@ CREATE TABLE odgaps_ts_summary_s AS(
             AVG("DailyVols") AS avgvol,
             SUM("DailyVols") AS sumvol,
             togeom AS geom
-        FROM odgaps_ts_s
+        FROM odgaps_ts
         WHERE demandscore <> 0
         GROUP BY "ToZone", togeom
         ORDER BY "ToZone"),
@@ -123,7 +123,7 @@ CREATE TABLE odgaps_ts_summary_s AS(
             AVG("DailyVols") AS avgvol,
             SUM("DailyVols") AS sumvol,
             fromgeom AS geom
-        FROM odgaps_ts_s
+        FROM odgaps_ts
         WHERE demandscore <> 0
         GROUP BY "FromZone", fromgeom
         ORDER BY "FromZone")
@@ -141,13 +141,13 @@ CREATE TABLE odgaps_ts_summary_s AS(
     
 --create indices
 CREATE INDEX odgaps_ts_summary_idx_base_s
-  ON public.odgaps_ts_summary_s
+  ON public.odgaps_ts_summary
   USING btree
   (zone, w_avgcon, w_avgscore, w_avgvol);
 
 
 CREATE INDEX odgaps_ts_summary_idx_geo_s
-  ON public.odgaps_ts_summary_s
+  ON public.odgaps_ts_summary
   USING gist
   (geom);
     
@@ -161,7 +161,7 @@ CREATE INDEX odgaps_ts_summary_idx_geo_s
         --AVG(gapscore) AS avggap,
         --AVG("DailyVols") AS avgvol,
         --fromgeom
-    FROM odgaps_ts_s
+    FROM odgaps_ts
     WHERE "ToZone" IN (10225, 10220, 10219, 10222)
     AND demandscore <> 0
     GROUP BY "FromZone" --fromgeom
@@ -171,7 +171,7 @@ CREATE INDEX odgaps_ts_summary_idx_geo_s
         "FromZone",
         SUM("ConnectionScore"*demandscore)/SUM(demandscore) AS w_avg_con,
         SUM("gapscore"*demandscore)/SUM(demandscore) AS w_avg_gap
-    FROM odgaps_ts_s_trim
+    FROM odgaps_ts_trim
     WHERE "ToZone" IN (10225, 10220, 10219, 10222)
     AND demandscore <> 0
     GROUP BY "FromZone"
@@ -185,7 +185,7 @@ CREATE INDEX odgaps_ts_summary_idx_geo_s
         AVG(gapscore) AS avggap,
         --AVG("DailyVols") AS avgvol,
         fromgeom
-    FROM odgaps_ts_s
+    FROM odgaps_ts
     WHERE "ToZone" < 200
     AND demandscore <> 0
     GROUP BY "FromZone", fromgeom
@@ -242,12 +242,35 @@ CREATE INDEX odgaps_ts_summary_idx_geo_s
     AND demandscore <> 0
     GROUP BY "ToZone", togeom
     
+---from glassboro with total demand??
+WITH tblA AS(
+    SELECT
+        "ToZone",
+        SUM("ConnectionScore"*demandscore)/SUM(demandscore) AS w_avg_con,
+        SUM("gapscore"*demandscore)/SUM(demandscore) AS w_avg_gap,
+        AVG("ConnectionScore") AS avgcon,
+        AVG(gapscore) AS avggap,
+        SUM("DailyVols") AS sumvol,
+        togeom
+    FROM odgaps_ts
+    WHERE "FromZone" IN(
+        SELECT
+            no
+        FROM zonemcd_join_region
+        WHERE mun_name = 'Glassboro Borough' )
+    AND demandscore <> 0
+    GROUP BY "ToZone", togeom
+    )
+SELECT 
+	ROUND(SUM(sumvol))
+FROM tblA
+    
 ----TRIMMED
     SELECT
         "ToZone",
         SUM("ConnectionScore"*demandscore)/SUM(demandscore) AS w_avg_con,
         SUM("gapscore"*demandscore)/SUM(demandscore) AS w_avg_gap
-    FROM odgaps_ts_s_trim
+    FROM odgaps_ts_trim
     WHERE "FromZone" IN(
         SELECT
             no
