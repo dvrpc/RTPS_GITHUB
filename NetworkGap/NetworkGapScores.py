@@ -1,3 +1,27 @@
+######
+# This script pulls a number of variables from the reigonal model in Visum
+# It cleans unnecessary model gap-fillers and calcualtes a connection and demand score for each OD pair in the region
+#
+# Runs using Python 2.7
+######
+# What does model need before running this?
+#
+#  Ensure shuttles throughout the region are included
+#
+#  Ensure the necessary skims have been run and exist
+#    Number of Transfers (480 NTR)
+#    Journey Time (490 JRT)
+#    Journey Distance (100003 JRD) - need to run
+#    Highway Time (290 TTC)  -tsys specific time interval in loaded network
+#    Transit Distance (270 DIS)
+#    Highway Volume (2000 HWY)
+#    Transit Volume (2200 ToTotal)
+#    Transfer Wait Time (100002 TWT) - need to run
+#    Total Volume (100004 TotalVol_AllModes) - need to run
+#
+# Create postgres DB and update name on lines 483, 530, 534
+# Create Extension postgis
+
 import numpy
 import VisumPy.helpers as h
 import os
@@ -5,6 +29,8 @@ import csv
 import scipy
 import pandas as pd
 import matplotlib.pyplot as plt
+import psycopg2 as psql 
+from sqlalchemy import create_engine
 
 #look for version files in run folder
 runDir = r"D:\BikePedTransit\RTPS\ServiceFrequencyBase_wShuttles"
@@ -77,9 +103,8 @@ del JourneyDist
 del HwyTime 
 del PrTDist 
 del HwyVol
-del TransitVol 
+del TransitVol
 del TransferWait
-
 
 #calculate sum of transit volume
 TotTransitVol = 0
@@ -108,9 +133,7 @@ print "calculate TOD weighted averages"
 #calculate average and volume weighted averages for Number of Transfers
 #create lists to hold counts, sums, and the average
 NTR_counts = []
-# NTR_sums = []
 NTR_w_sums = []
-# NTR_avg = []
 NTR_w_avg = []
 NTR_volsum = []
 
@@ -118,7 +141,6 @@ NTR_volsum = []
 print "step one"
 for i in xrange(0, len(Transfers["AM"])):
     count = 0.0
-    # _sum = 0.0
     w_sum = 0.0
     volsum = 0.0
     #iterate through the TODs
@@ -127,22 +149,12 @@ for i in xrange(0, len(Transfers["AM"])):
         #threshold is set lower because of effects of volume weighting in JRD skimming calculations
         if Transfers[key][i] < 166665:
             count += 1
-            # _sum += Transfers[key][i]
             w_sum += (Transfers[key][i] * TOD_VolSums[key])
             volsum += (TOD_VolSums[key])
     NTR_counts.append(count)
-    # NTR_sums.append(_sum)
     NTR_w_sums.append(w_sum)
     NTR_volsum.append(volsum)
-    
-#use the lists of counts and sums populated above to caululate the average across time periods
-#cannot use 0 in place of a real value here to filter out because 0 is a legitimate value - use -1 isntead
-# print "step two"
-# for i in xrange(0, len(NTR_counts)):
-    # if NTR_counts[i] == 0:
-        # NTR_avg.append(-1)
-    # else:
-        # NTR_avg.append(NTR_sums[i]/NTR_counts[i])
+
         
 print "step two"
 for i in xrange(0, len(NTR_counts)):
@@ -152,23 +164,18 @@ for i in xrange(0, len(NTR_counts)):
         NTR_w_avg.append(NTR_w_sums[i]/NTR_volsum[i])
         
 del NTR_counts
-# del NTR_sums
 del NTR_w_sums
-# del NTR_avg
 
 #repeat for Journey Distance
 #create lists to hold counts, sums, and the average
 JRD_counts = []
-# JRD_sums = []
 JRD_w_sums = []
-# JRD_avg = []
 JRD_w_avg = []
 JRD_volsum = []
 
 #iterate through all the items in each list of TOD JRD
 for i in xrange(0, len(Journeys["AM"])):
     count = 0.0
-    # _sum = 0.0
     w_sum = 0.0  
     volsum = 0.0
     #iterate through the TODs
@@ -177,22 +184,11 @@ for i in xrange(0, len(Journeys["AM"])):
         #threshold is set lower because of effects of volume weighting in JRD skimming calculations
         if Journeys[key][i] < 166665:
             count += 1
-            # _sum += Journeys[key][i]
             w_sum += (Journeys[key][i] * TOD_VolSums[key])
             volsum += (TOD_VolSums[key])
     JRD_counts.append(count)
-    # JRD_sums.append(_sum)
     JRD_w_sums.append(w_sum)
     JRD_volsum.append(volsum)
-    
-#use the lists of counts and sums populated above to caululate the average across time periods
-# for i in xrange(0, len(JRD_counts)):
-#if there are no paths for any time period, append 0 to the list, so its still the right length
-#if there is only a path in a single time period, that path distance will be used as the average
-    # if JRD_counts[i] == 0:
-        # JRD_avg.append(0)
-    # else:
-        # JRD_avg.append(JRD_sums[i]/JRD_counts[i])
     
 for i in xrange(0, len(JRD_counts)):
     if JRD_counts[i] == 0:
@@ -201,23 +197,18 @@ for i in xrange(0, len(JRD_counts)):
         JRD_w_avg.append(JRD_w_sums[i]/JRD_volsum[i])
         
 del JRD_counts
-# del JRD_sums
 del JRD_w_sums
-# del JRD_avg
 
 #repeat for Journey Time
 #create lists to hold counts, sums, and the average
 JRT_counts = []
-# JRT_sums = []
 JRT_w_sums = []
-# JRT_avg = []
 JRT_w_avg = []
 JRT_volsum = []
 
 #iterate through all the items in each list of TOD JRT
 for i in xrange(0, len(JourTime["AM"])):
     count = 0.0
-    # _sum = 0.0
     w_sum = 0.0  
     volsum = 0.0
     #iterate through the TODs
@@ -226,22 +217,11 @@ for i in xrange(0, len(JourTime["AM"])):
         #threshold is set lower because of effects of volume weighting in JRT skimming calculations
         if JourTime[key][i] < 166665:
             count += 1
-            # _sum += JourTime[key][i]
             w_sum += (JourTime[key][i] * TOD_VolSums[key])
             volsum += TOD_VolSums[key]
     JRT_counts.append(count)
-    # JRT_sums.append(_sum)
     JRT_w_sums.append(w_sum)
     JRT_volsum.append(volsum)
-    
-#use the lists of counts and sums populated above to caululate the average across time periods
-# for i in xrange(0, len(JRT_counts)):
-# #if there are no paths for any time period, append 0 to the list, so its still the right length
-# #if there is only a path in a single time period, that path distance will be used as the average
-    # if JRT_counts[i] == 0:
-        # JRT_avg.append(0)
-    # else:
-        # JRT_avg.append(JRT_sums[i]/JRT_counts[i])
     
 for i in xrange(0, len(JRT_counts)):
     if JRT_counts[i] == 0:
@@ -250,122 +230,83 @@ for i in xrange(0, len(JRT_counts)):
         JRT_w_avg.append(JRT_w_sums[i]/JRT_volsum[i])
         
 del JRT_counts
-# del JRT_sums
 del JRT_w_sums
-# del JRT_avg
 
 #repeat for Highway Distance
 #create lists to hold counts, sums, and the average
 HWY_counts = []
-# HWY_sums = []
 HWY_w_sums = []
-# HWY_avg = []
 HWY_w_avg = []
 HWY_volsum = []
 
 #iterate through all the items in each list of TOD JRD
 for i in xrange(0, len(CarDist["AM"])):
     count = 0.0
-    # _sum = 0.0
     w_sum = 0.0
     volsum = 0.0
     #iterate through the TODs
     for key in CarDist:
         count += 1
-        # _sum += CarDist[key][i]
         w_sum += (CarDist[key][i] * HWY_TOD_VolSums[key])
         volsum += HWY_TOD_VolSums[key]
     HWY_counts.append(count)
-    # HWY_sums.append(_sum)
     HWY_w_sums.append(w_sum)
     HWY_volsum.append(volsum)
-    
-#use the lists of counts and sums populated above to caululate the average across time periods
-# for i in xrange(0, len(HWY_counts)):
-    # HWY_avg.append(HWY_sums[i]/HWY_counts[i])
     
 for i in xrange(0, len(HWY_counts)):
     HWY_w_avg.append(HWY_w_sums[i]/HWY_volsum[i])
     
 del HWY_counts
-# del HWY_sums
 del HWY_w_sums
-# del HWY_avg
 
 #repeat for Highway Time
 #create lists to hold counts, sums, and the average
 HwyT_counts = []
-# HwyT_sums = []
 HwyT_w_sums = []
-# HwyT_avg = []
 HwyT_w_avg = []
 HwyT_volsum = []
 
 #iterate through all the items in each list of TOD JRD
 for i in xrange(0, len(CarTime["AM"])):
     count = 0.0
-    # _sum = 0.0
     w_sum = 0.0
     volsum = 0.0
     #iterate through the TODs
     for key in CarTime:
         count += 1
-        # _sum += CarTime[key][i]
         w_sum += (CarTime[key][i] * HWY_TOD_VolSums[key])
         volsum += HWY_TOD_VolSums[key]
     HwyT_counts.append(count)
-    # HwyT_sums.append(_sum)
     HwyT_w_sums.append(w_sum)
     HwyT_volsum.append(volsum)
-    
-#use the lists of counts and sums populated above to caululate the average across time periods
-# for i in xrange(0, len(HwyT_counts)):
-    # HwyT_avg.append(HwyT_sums[i]/HwyT_counts[i])
     
 for i in xrange(0, len(HwyT_counts)):
     HwyT_w_avg.append(HwyT_w_sums[i]/HwyT_volsum[i])
     
 del HwyT_counts
-# del HwyT_sums
 del HwyT_w_sums
-# del HwyT_avg
 
 #repeat for Transfer Wait Times
 #create lists to hold counts, sums, and the average
-
-#Transfer Wait Time
 TWT_counts = []
-# TWT_sums = []
 TWT_w_sums = []
-# TWT_avg = []
 TWT_w_avg = []
 TWT_volsum = []
 
 #iterate through all the items in each list of TOD JRD
 for i in xrange(0, len(TrWait["AM"])):
     count = 0.0
-    # _sum = 0.0
     w_sum = 0.0
     volsum = 0.0
     #iterate through the TODs
     for key in TrWait:
         if TrWait[key][i] < 166665:
             count += 1
-            # _sum += TrWait[key][i]
             w_sum += (TrWait[key][i] * TOD_VolSums[key])
             volsum += TOD_VolSums[key]
     TWT_counts.append(count)
-    # TWT_sums.append(_sum)
     TWT_w_sums.append(w_sum)
     TWT_volsum.append(volsum)
-    
-#use the lists of counts and sums populated above to caululate the average across time periods
-# for i in xrange(0, len(TWT_counts)):
-    # if TWT_counts[i] == 0:
-        # #leave open possiblity of 0 wait time; filter out later
-        # TWT_avg.append(-1)
-    # else:
-        # TWT_avg.append(TWT_sums[i]/TWT_counts[i])
     
 for i in xrange(0, len(TWT_counts)):
     if TWT_counts[i] == 0:
@@ -375,43 +316,8 @@ for i in xrange(0, len(TWT_counts)):
         TWT_w_avg.append(TWT_w_sums[i]/TWT_volsum[i])
         
 del TWT_counts
-# del TWT_sums
 del TWT_w_sums
-# del TWT_avg
 
-"""
-#Add TOD  volumes for Highway and Transit
-#create lists to hold sums
-#no need to weight by volume because it's already volumes
-HWYvol_sums = []
-
-#iterate through all the items in each list of TOD volumes
-for i in xrange(0, len(PrTvol["AM"])):
-    _sum = 0.0
-    #iterate through the TODs
-    for key in PrTvol:
-        _sum += PrTvol[key][i]
-    HWYvol_sums.append(_sum)
-
-#Transit
-PuTvol_sums = []
-
-#iterate through all the items in each list of TOD volumes
-for i in xrange(0, len(PuTvol["AM"])):
-    _sum = 0.0
-    #iterate through the TODs
-    for key in PuTvol:
-        _sum += PuTvol[key][i]
-    PuTvol_sums.append(_sum)    
-    
-#combine for total volumes
-TotVol = []
-for i in xrange(0, len(HWYvol_sums)):
-    TotVol.append(HWYvol_sums[i] + PuTvol_sums[i])
-    
-del HWYvol_sums
-del PuTvol_sums
-"""
 #update NTR based on valid JRD
 #if JRD is valid, there is a connection. however, NTR might be invalid (999999) because you can't make the whole trip witihin the 2 hour assignment time interval
 #changing the NTR to 4 reflects the fact that the number of transfers is prohibitively high
@@ -482,8 +388,6 @@ print len(DistanceFlag)
 print len(TimeFlag)
 print TransferPoint[200]
 print TransferPoint[300]
-print NTR_avg[200]
-print NTR_avg[300]
 
 #criteria for TWT point
 #updated 5/7/19 based on SEPTA feedback re: transfer penaltys
@@ -513,7 +417,7 @@ for i in xrange(0, len(FromZone)):
     x = DistanceFlag[i] + TimeFlag[i] + TransferPoint[i] + TWTPoint[i]
     ConnectionScore.append(x)
     
-print "creating data frame"
+print "creating data frame" 
     
 #create dataframe from these lists
 df = pd.DataFrame(
@@ -556,33 +460,10 @@ NoConRegionDF['ConnectionScore'] = 6
 #update the parent DF with the child df (Nope) and test to make sure it updated
 RegionDF.update(NoConRegionDF)
 
-#test
-#a = RegionDF['FromZone'] == 1 
-#b = RegionDF['ToZone'] == 4610
-#test = RegionDF[a&b]
-#test.head()
-
-#del test
 del NoConRegionDF
 
 #update full DF to then select columns to add back into Visum as UDAs
 df.update(RegionDF)
-
-#test
-#a = df['FromZone'] == 1 
-#b = df['ToZone'] == 1810
-#test = df[a&b]
-#test.head()
-
-#del test
-
-#delete weighted averages
-del TWT_avg
-del NTR_avg
-del HwyT_avg
-del JRD_avg
-del HWY_avg
-del JRT_avg
 
 #delete dictionaries
 del Transfers
@@ -599,8 +480,7 @@ SubRegionDF = RegionDF.loc[:,['FromZone', 'ToZone', 'NumTransfers', 'TrWait', 'D
 print "importing connection score table"
 
 #create Connection Score table in postgres
-from sqlalchemy import create_engine
-engine = create_engine('postgresql://postgres:sergt@localhost:5432/RTPS')
+engine = create_engine('postgresql://postgres:sergt@localhost:5432/rtsp')
 SubRegionDF.to_sql('ConnectionScore', engine, chunksize = 10000)
 
 ###DEMAND SCORE###
@@ -647,13 +527,11 @@ RegionDemand = pd.DataFrame(Demand[FromRegion & ToRegion])
 
 print "importing demand score table"
 
-from sqlalchemy import create_engine
-engine = create_engine('postgresql://postgres:sergt@localhost:5432/RTPS')
+engine = create_engine('postgresql://postgres:sergt@localhost:5432/rtsp')
 RegionDemand.to_sql('DemandScore', engine, chunksize = 10000)
 
-import psycopg2 as psql # PostgreSQL connector
 #connect to SQL DB in python
-con = psql.connect(dbname = "RTPS", host = "localhost", port = 5432, user = "postgres", password = "sergt")
+con = psql.connect(dbname = "rtsp", host = "localhost", port = 5432, user = "postgres", password = "sergt")
 #create cursor to execute querys
 cur = con.cursor()
 
@@ -692,94 +570,3 @@ Q_SetDemandScore_rest = """
     """
 cur.execute(Q_SetDemandScore_rest)
 con.commit()
-'''
-####################################
-#testing new demand score criteria
-#t1 = 0.5
-Q_AddCol = """
-    ALTER TABLE public."DemandScore"
-    ADD COLUMN "DemScore_t1" integer;"""
-cur.execute(Q_AddCol)
-con.commit()
-
-#no demand
-Q_SetDemandScore_0 = """
-    UPDATE public."DemandScore"
-    SET "DemScore_t1" = 0
-    WHERE public."DemandScore"."DailyVols" < 0.5 ; 
-    """
-cur.execute(Q_SetDemandScore_0)
-
-#below mean demand
-Q_SetDemandScore_1 = """
-    UPDATE public."DemandScore"
-    SET "DemScore_t1" = 1
-    WHERE public."DemandScore"."DailyVols" <= 5
-    AND public."DemandScore"."DailyVols" >= 0.5; 
-    """
-cur.execute(Q_SetDemandScore_1)
-
-#above mean demand
-Q_SetDemandScore_rest = """
-    UPDATE public."DemandScore"
-    SET "DemScore_t1" = 2
-    WHERE public."DemandScore"."DailyVols" <= 7240
-    AND public."DemandScore"."DailyVols" > 5; 
-    """
-cur.execute(Q_SetDemandScore_rest)
-con.commit()
-
-
-#t2 = 0.25
-Q_AddCol = """
-    ALTER TABLE public."DemandScore"
-    ADD COLUMN "DemScore_t2" integer;"""
-cur.execute(Q_AddCol)
-con.commit()
-
-#no demand
-Q_SetDemandScore_0 = """
-    UPDATE public."DemandScore"
-    SET "DemScore_t2" = 0
-    WHERE public."DemandScore"."DailyVols" < 0.25 ; 
-    """
-cur.execute(Q_SetDemandScore_0)
-
-#below mean demand
-Q_SetDemandScore_1 = """
-    UPDATE public."DemandScore"
-    SET "DemScore_t2" = 1
-    WHERE public."DemandScore"."DailyVols" <= 5
-    AND public."DemandScore"."DailyVols" >= 0.25; 
-    """
-cur.execute(Q_SetDemandScore_1)
-
-#above mean demand
-Q_SetDemandScore_rest = """
-    UPDATE public."DemandScore"
-    SET "DemScore_t2" = 2
-    WHERE public."DemandScore"."DailyVols" <= 7240
-    AND public."DemandScore"."DailyVols" > 5; 
-    """
-cur.execute(Q_SetDemandScore_rest)
-con.commit()
-'''
-
-UPDATE public.odgaps_ts_s
-SET demscore_t2 = d
-FROM (
-	SELECT "FromZone" AS f, "ToZone" AS t, "DemScore_t2" AS d
-	FROM "DemandScore" 
-	) tbl_ds
-WHERE odgaps_ts_s."FromZone" = tbl_ds.f
-AND odgaps_ts_s."ToZone" = tbl_ds.t
-
-SELECT 
-    "FromZone",
-    SUM("ConnectionScore"*"DemScore_t1")/SUM("DemScore_t1") AS w_avg_con,
-    SUM("gapscore"*"DemScore_t1")/SUM("DemScore_t1") AS w_avg_gap,
-    fromgeom
-FROM tblA
-WHERE "ToZone" IN (10225, 10220, 10219, 10222)
-AND "DemScore_t1" <> 0
-GROUP BY "FromZone", fromgeom
